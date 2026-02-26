@@ -8,6 +8,7 @@ from typing import Optional
 from contextlib import asynccontextmanager
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime
 import asyncio
 import uvicorn
 import os
@@ -174,7 +175,7 @@ async def chat_with_tutor(request: ChatRequest, db: AsyncSession = Depends(get_d
 
 
 @app.post("/api/problems/generate")
-async def generate_problem(request: ProblemGenerateRequest, db: AsyncSession = Depends(get_db)):
+async def generate_problem(request: ProblemGenerateRequest):
     problem_data = await asyncio.to_thread(
         ai_tutor.generate_practice_problem,
         topic=request.topic,
@@ -193,6 +194,11 @@ async def generate_problem(request: ProblemGenerateRequest, db: AsyncSession = D
 
 @app.post("/api/problems/submit")
 async def submit_answer(request: AnswerSubmitRequest, db: AsyncSession = Depends(get_db)):
+    # Validate user exists
+    user_check = await db.execute(select(User).where(User.id == request.user_id))
+    if not user_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="User not found")
+
     result = await db.execute(select(Problem).where(Problem.id == request.problem_id))
     problem = result.scalar_one_or_none()
     
@@ -219,6 +225,7 @@ async def submit_answer(request: AnswerSubmitRequest, db: AsyncSession = Depends
         if assessment["is_correct"]:
             progress.problems_correct += 1
         progress.mastery_level = progress.problems_correct / progress.problems_attempted
+        progress.last_practiced = datetime.utcnow()
     else:
         # First attempt for this topic — create a new progress record
         is_correct = assessment["is_correct"]
@@ -269,6 +276,7 @@ async def assess_direct(request: DirectAssessRequest, db: AsyncSession = Depends
         if assessment["is_correct"]:
             progress.problems_correct += 1
         progress.mastery_level = progress.problems_correct / progress.problems_attempted
+        progress.last_practiced = datetime.utcnow()
     else:
         is_correct = assessment["is_correct"]
         progress = Progress(
@@ -305,6 +313,10 @@ async def generate_learning_path(request: LearningPathRequest):
 
 @app.get("/api/users/{user_id}/progress")
 async def get_user_progress(user_id: int, db: AsyncSession = Depends(get_db)):
+    user_check = await db.execute(select(User).where(User.id == user_id))
+    if not user_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="User not found")
+
     result = await db.execute(
         select(Progress).where(Progress.user_id == user_id)
     )

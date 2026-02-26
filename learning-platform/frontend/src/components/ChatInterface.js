@@ -93,7 +93,7 @@ const ChatInterface = ({ userId }) => {
               <Bot size={20} />
             </div>
             <div style={styles.messageContent}>
-              <div style={styles.typing}>
+              <div style={styles.typing} className="typing">
                 <span></span>
                 <span></span>
                 <span></span>

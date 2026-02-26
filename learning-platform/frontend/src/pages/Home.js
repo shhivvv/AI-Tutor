@@ -32,7 +32,7 @@ const Home = () => {
 
       <div style={styles.cardsGrid}>
         <div style={styles.card} onClick={() => navigate('/tutor')}>
-          <div style={styles.cardIcon} style={{backgroundColor: '#dbeafe'}}>
+          <div style={{...styles.cardIcon, backgroundColor: '#dbeafe'}}>
             <MessageSquare size={32} color="#1e40af" />
           </div>
           <h3 style={styles.cardTitle}>AI Tutor</h3>
@@ -43,7 +43,7 @@ const Home = () => {
         </div>
 
         <div style={styles.card} onClick={() => navigate('/practice')}>
-          <div style={styles.cardIcon} style={{backgroundColor: '#dcfce7'}}>
+          <div style={{...styles.cardIcon, backgroundColor: '#dcfce7'}}>
             <ListChecks size={32} color="#15803d" />
           </div>
           <h3 style={styles.cardTitle}>Practice Problems</h3>
@@ -54,7 +54,7 @@ const Home = () => {
         </div>
 
         <div style={styles.card} onClick={() => navigate('/dashboard')}>
-          <div style={styles.cardIcon} style={{backgroundColor: '#fef3c7'}}>
+          <div style={{...styles.cardIcon, backgroundColor: '#fef3c7'}}>
             <BarChart3 size={32} color="#92400e" />
           </div>
           <h3 style={styles.cardTitle}>Your Progress</h3>

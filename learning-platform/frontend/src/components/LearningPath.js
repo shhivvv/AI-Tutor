@@ -71,7 +71,11 @@ const LearningPath = () => {
           />
         </div>
 
-        <button onClick={generatePath} disabled={loading} style={styles.generateButton}>
+        <button onClick={generatePath} disabled={loading} style={{
+          ...styles.generateButton,
+          opacity: loading ? 0.6 : 1,
+          cursor: loading ? 'not-allowed' : 'pointer',
+        }}>
           <Target size={20} />
           {loading ? 'Generating Path...' : 'Generate Learning Path'}
         </button>
