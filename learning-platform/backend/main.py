@@ -174,6 +174,7 @@ async def generate_problem(request: ProblemGenerateRequest, db: AsyncSession = D
     
     return {
         "question": problem_data["question"],
+        "solution": problem_data["solution"],
         "hints": problem_data["hints"],
         "topic": request.topic,
         "difficulty": request.difficulty
@@ -238,11 +239,12 @@ async def assess_direct(request: DirectAssessRequest, db: AsyncSession = Depends
         correct_solution=request.solution
     )
 
-    # Find existing progress record by user + topic_name
+    # Find existing progress record by user + topic_name (case-insensitive)
+    normalized_topic = request.topic_name.strip().lower()
     result = await db.execute(
         select(Progress).where(
             Progress.user_id == request.user_id,
-            Progress.topic_name == request.topic_name
+            Progress.topic_name == normalized_topic
         )
     )
     progress = result.scalar_one_or_none()
@@ -257,7 +259,7 @@ async def assess_direct(request: DirectAssessRequest, db: AsyncSession = Depends
         progress = Progress(
             user_id=request.user_id,
             topic_id=None,
-            topic_name=request.topic_name,
+            topic_name=normalized_topic,
             problems_attempted=1,
             problems_correct=1 if is_correct else 0,
             mastery_level=1.0 if is_correct else 0.0,

@@ -142,16 +142,27 @@ Evaluate the student's answer."""
         
         try:
             lines = response.split("\n")
-            is_correct = "Yes" in [l for l in lines if l.startswith("CORRECT:")][0]
-            score = int([l.split(":")[1].strip() for l in lines if l.startswith("SCORE:")][0])
-            feedback = response.split("FEEDBACK:")[1].strip()
-            
+
+            correct_line = next((l for l in lines if l.strip().startswith("CORRECT:")), None)
+            is_correct = correct_line is not None and "Yes" in correct_line
+
+            score_line = next((l for l in lines if l.strip().startswith("SCORE:")), None)
+            if score_line:
+                raw_score = score_line.split(":", 1)[1].strip().split("/")[0].strip()
+                score = int(float(raw_score))
+            else:
+                score = 100 if is_correct else 0
+
+            feedback_parts = response.split("FEEDBACK:")
+            feedback = feedback_parts[1].strip() if len(feedback_parts) > 1 else response.strip()
+
             return {
                 "is_correct": is_correct,
                 "score": score,
                 "feedback": feedback
             }
-        except:
+        except Exception as e:
+            # Fallback: still return useful feedback even if parsing fails
             return {
                 "is_correct": False,
                 "score": 0,
