@@ -62,7 +62,8 @@ class Progress(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    topic_id = Column(Integer, ForeignKey("topics.id"))
+    topic_id = Column(Integer, ForeignKey("topics.id"), nullable=True)
+    topic_name = Column(String, nullable=True)  # free-form topic name for on-the-fly problems
     mastery_level = Column(Float, default=0.0)
     problems_attempted = Column(Integer, default=0)
     problems_correct = Column(Integer, default=0)

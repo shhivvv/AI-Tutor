@@ -62,6 +62,18 @@ export const apiService = {
     return response.data;
   },
 
+  // Assess a free-form problem and track progress
+  assessAnswerDirect: async (userId, topicName, question, answer, solution) => {
+    const response = await api.post('/api/problems/assess-direct', {
+      user_id: userId,
+      topic_name: topicName,
+      question,
+      answer,
+      solution,
+    });
+    return response.data;
+  },
+
   // Learning path
   generateLearningPath: async (subject, currentLevel = 'beginner', goals = '') => {
     const response = await api.post('/api/learning-path', {

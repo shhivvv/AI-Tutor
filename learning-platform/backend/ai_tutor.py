@@ -1,47 +1,23 @@
 import requests
-import json
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
 # Groq API Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-AI_MODEL = os.getenv("AI_MODEL", "llama-3.1-70b-versatile")
-USE_MOCK = os.getenv("USE_MOCK", "false").lower() == "true"
+AI_MODEL = "llama-3.3-70b-versatile"  # Groq model
 
 
 class AITutor:
-    """AI Tutor service using Groq API with mock fallback"""
-    
+    """AI Tutor service using Groq API"""
+
     def __init__(self):
         self.base_url = GROQ_BASE_URL
         self.api_key = GROQ_API_KEY
         self.model = AI_MODEL
-        self.use_mock = USE_MOCK
-        self.model_available = self._check_model_available()
-        
-    def _check_model_available(self) -> bool:
-        """Check if Groq API and model are available"""
-        if self.use_mock:
-            return False
-        try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            response = requests.get(
-                f"{self.base_url}/models",
-                headers=headers,
-                timeout=5
-            )
-            if response.status_code == 200:
-                models = response.json().get("data", [])
-                return any(m.get("id", "").startswith(self.model.split("-")[0]) for m in models)
-            return False
-        except:
-            return False
     
     def generate_response(self, prompt: str, system_prompt: str = None) -> str:
         """Generate AI response using Groq API"""
@@ -74,22 +50,6 @@ class AITutor:
             return "The AI is taking too long to respond. Please try a simpler question."
         except Exception as e:
             return f"Error communicating with AI: {str(e)}"
-    
-    def _generate_mock_response(self, prompt: str) -> str:
-        """Generate a mock response for testing"""
-        mock_responses = {
-            "calculus": "Great question! Let me break this down. First, what do you think the derivative represents in terms of rate of change?",
-            "algebra": "That's a good attempt! Let me ask you: how would you apply the distributive property here?",
-            "biology": "Excellent observation! Now, can you think about how this connects to the cellular process we discussed earlier?",
-            "physics": "Interesting! Let me guide you through this. What forces do you think are acting on the object?",
-            "default": "That's a thoughtful question! Let me help you think through this step by step. What aspect would you like to explore first?"
-        }
-        
-        for key, response in mock_responses.items():
-            if key.lower() in prompt.lower():
-                return response
-        
-        return mock_responses["default"]
     
     def tutor_chat(self, student_question: str, topic: str = None, conversation_history: list = None) -> str:
         """Respond to student questions using Socratic method"""

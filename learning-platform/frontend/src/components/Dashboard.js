@@ -75,7 +75,7 @@ const Dashboard = ({ userId }) => {
             {progress.progress.map((item, idx) => (
               <div key={idx} style={styles.progressItem}>
                 <div style={styles.progressHeader}>
-                  <span style={styles.topicTitle}>Topic {item.topic_id}</span>
+                  <span style={styles.topicTitle}>{item.topic_name || `Topic ${item.topic_id}`}</span>
                   <span style={styles.accuracyBadge}>{item.accuracy.toFixed(1)}% accuracy</span>
                 </div>
                 <div style={styles.progressBar}>

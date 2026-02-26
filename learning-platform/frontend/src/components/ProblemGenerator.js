@@ -42,16 +42,18 @@ const ProblemGenerator = () => {
 
     setSubmitting(true);
     try {
-      // Since we're generating problems on-the-fly without saving to DB,
-      // we'll use the AI to assess directly
-      const result = await apiService.chatWithTutor(
+      const result = await apiService.assessAnswerDirect(
         1, // user_id
-        `Please evaluate this answer:\n\nQuestion: ${problem.question}\n\nStudent's Answer: ${userAnswer}\n\nProvide feedback on correctness and suggestions.`,
-        topic
+        topic,
+        problem.question,
+        userAnswer,
+        problem.solution
       );
       
       setAssessment({
-        feedback: result.response,
+        feedback: result.assessment.feedback,
+        is_correct: result.assessment.is_correct,
+        score: result.assessment.score,
         submitted: true
       });
     } catch (error) {
@@ -186,8 +188,13 @@ const ProblemGenerator = () => {
             ) : (
               <div style={styles.assessmentCard}>
                 <div style={styles.assessmentHeader}>
-                  <CheckCircle size={24} color="#10b981" />
-                  <h4 style={styles.assessmentTitle}>Feedback</h4>
+                  {assessment.is_correct
+                    ? <CheckCircle size={24} color="#10b981" />
+                    : <XCircle size={24} color="#ef4444" />}
+                  <h4 style={styles.assessmentTitle}>
+                    {assessment.is_correct ? 'Correct!' : 'Not quite right'}
+                    {assessment.score !== undefined && ` — Score: ${assessment.score}/100`}
+                  </h4>
                 </div>
                 <p style={styles.feedbackText}>{assessment.feedback}</p>
                 <button onClick={resetProblem} style={styles.tryAgainButton}>

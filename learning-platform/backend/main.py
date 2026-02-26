@@ -1,20 +1,42 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
+from contextlib import asynccontextmanager
+from pathlib import Path
+from dotenv import load_dotenv
+import asyncio
 import uvicorn
+import os
+
+load_dotenv(Path(__file__).parent / ".env")
 
 from database import get_db, init_db
 from models import User, Course, Topic, Problem, Progress, Conversation
 from ai_tutor import ai_tutor
 
-app = FastAPI(title="Personalized Learning Platform API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    # Add topic_name column if it doesn't exist (migration for existing DBs)
+    from database import engine
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE progress ADD COLUMN IF NOT EXISTS topic_name VARCHAR;"
+        ))
+    print("✅ Database initialized")
+    print("✅ Server ready!")
+    yield
+
+
+app = FastAPI(title="Personalized Learning Platform API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,12 +66,13 @@ class LearningPathRequest(BaseModel):
     current_level: str = "beginner"
     goals: Optional[str] = ""
 
+class DirectAssessRequest(BaseModel):
+    user_id: int
+    topic_name: str
+    question: str
+    answer: str
+    solution: str
 
-@app.on_event("startup")
-async def startup_event():
-    await init_db()
-    print("✅ Database initialized")
-    print("✅ Server ready!")
 
 
 @app.get("/")
@@ -69,19 +92,12 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    try:
-        test_response = ai_tutor.generate_response("Say 'OK' if you're working")
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "ai_service": "connected",
-            "ai_test": test_response[:50]
-        }
-    except Exception as e:
-        return {
-            "status": "degraded",
-            "error": str(e)
-        }
+    groq_key = os.getenv("GROQ_API_KEY")
+    return {
+        "status": "healthy",
+        "database": "connected",
+        "ai_service": "connected" if groq_key else "missing key",
+    }
 
 
 @app.post("/api/users")
@@ -124,7 +140,8 @@ async def chat_with_tutor(request: ChatRequest, db: AsyncSession = Depends(get_d
         for conv in reversed(recent_conversations)
     ]
     
-    response = ai_tutor.tutor_chat(
+    response = await asyncio.to_thread(
+        ai_tutor.tutor_chat,
         student_question=request.message,
         topic=request.topic,
         conversation_history=history
@@ -138,6 +155,7 @@ async def chat_with_tutor(request: ChatRequest, db: AsyncSession = Depends(get_d
     )
     db.add(conversation)
     await db.commit()
+    await db.refresh(conversation)  # Fix: populate conversation.id after commit
     
     return {
         "response": response,
@@ -147,7 +165,8 @@ async def chat_with_tutor(request: ChatRequest, db: AsyncSession = Depends(get_d
 
 @app.post("/api/problems/generate")
 async def generate_problem(request: ProblemGenerateRequest, db: AsyncSession = Depends(get_db)):
-    problem_data = ai_tutor.generate_practice_problem(
+    problem_data = await asyncio.to_thread(
+        ai_tutor.generate_practice_problem,
         topic=request.topic,
         difficulty=request.difficulty,
         problem_type=request.problem_type
@@ -169,7 +188,8 @@ async def submit_answer(request: AnswerSubmitRequest, db: AsyncSession = Depends
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
     
-    assessment = ai_tutor.assess_answer(
+    assessment = await asyncio.to_thread(
+        ai_tutor.assess_answer,
         question=problem.question,
         student_answer=request.answer,
         correct_solution=problem.solution
@@ -187,19 +207,72 @@ async def submit_answer(request: AnswerSubmitRequest, db: AsyncSession = Depends
         progress.problems_attempted += 1
         if assessment["is_correct"]:
             progress.problems_correct += 1
-        
         progress.mastery_level = progress.problems_correct / progress.problems_attempted
-        await db.commit()
+    else:
+        # First attempt for this topic — create a new progress record
+        is_correct = assessment["is_correct"]
+        progress = Progress(
+            user_id=request.user_id,
+            topic_id=problem.topic_id,
+            problems_attempted=1,
+            problems_correct=1 if is_correct else 0,
+            mastery_level=1.0 if is_correct else 0.0,
+        )
+        db.add(progress)
+
+    await db.commit()
     
     return {
         "assessment": assessment,
-        "progress_updated": progress is not None
+        "progress_updated": True
     }
+
+
+@app.post("/api/problems/assess-direct")
+async def assess_direct(request: DirectAssessRequest, db: AsyncSession = Depends(get_db)):
+    """Assess an on-the-fly problem (no saved Problem row) and track progress by topic name."""
+    assessment = await asyncio.to_thread(
+        ai_tutor.assess_answer,
+        question=request.question,
+        student_answer=request.answer,
+        correct_solution=request.solution
+    )
+
+    # Find existing progress record by user + topic_name
+    result = await db.execute(
+        select(Progress).where(
+            Progress.user_id == request.user_id,
+            Progress.topic_name == request.topic_name
+        )
+    )
+    progress = result.scalar_one_or_none()
+
+    if progress:
+        progress.problems_attempted += 1
+        if assessment["is_correct"]:
+            progress.problems_correct += 1
+        progress.mastery_level = progress.problems_correct / progress.problems_attempted
+    else:
+        is_correct = assessment["is_correct"]
+        progress = Progress(
+            user_id=request.user_id,
+            topic_id=None,
+            topic_name=request.topic_name,
+            problems_attempted=1,
+            problems_correct=1 if is_correct else 0,
+            mastery_level=1.0 if is_correct else 0.0,
+        )
+        db.add(progress)
+
+    await db.commit()
+
+    return {"assessment": assessment}
 
 
 @app.post("/api/learning-path")
 async def generate_learning_path(request: LearningPathRequest):
-    topics = ai_tutor.generate_learning_path(
+    topics = await asyncio.to_thread(
+        ai_tutor.generate_learning_path,
         subject=request.subject,
         current_level=request.current_level,
         goals=request.goals
@@ -226,6 +299,7 @@ async def get_user_progress(user_id: int, db: AsyncSession = Depends(get_db)):
         "progress": [
             {
                 "topic_id": p.topic_id,
+                "topic_name": p.topic_name or (f"Topic {p.topic_id}" if p.topic_id else "Unknown"),
                 "mastery_level": p.mastery_level,
                 "problems_attempted": p.problems_attempted,
                 "problems_correct": p.problems_correct,
@@ -238,6 +312,6 @@ async def get_user_progress(user_id: int, db: AsyncSession = Depends(get_db)):
 
 if __name__ == "__main__":
     print("🚀 Starting Personalized Learning Platform API...")
-    print("🤖 AI Model in use: llama-3.1-70b-versatile (Groq API)")
+    print("🤖 AI Model in use: llama-3.3-70b-versatile (Groq API)")
     print("=" * 50)
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
