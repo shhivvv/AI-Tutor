@@ -186,12 +186,19 @@ const ProblemGenerator = () => {
                 {submitting ? 'Evaluating...' : 'Submit Answer'}
               </button>
             ) : (
-              <div style={styles.assessmentCard}>
+              <div style={{
+                ...styles.assessmentCard,
+                backgroundColor: assessment.is_correct ? '#f0fdf4' : '#fef2f2',
+                border: `2px solid ${assessment.is_correct ? '#10b981' : '#ef4444'}`,
+              }}>
                 <div style={styles.assessmentHeader}>
                   {assessment.is_correct
                     ? <CheckCircle size={24} color="#10b981" />
                     : <XCircle size={24} color="#ef4444" />}
-                  <h4 style={styles.assessmentTitle}>
+                  <h4 style={{
+                    ...styles.assessmentTitle,
+                    color: assessment.is_correct ? '#15803d' : '#b91c1c',
+                  }}>
                     {assessment.is_correct ? 'Correct!' : 'Not quite right'}
                     {assessment.score !== undefined && ` — Score: ${assessment.score}/100`}
                   </h4>

@@ -18,7 +18,6 @@ const LearningPath = () => {
     setLoading(true);
     try {
       const response = await apiService.generateLearningPath(subject, currentLevel, goals);
-      console.log('Learning path response:', response); // Debug log
       setPath(response);
     } catch (error) {
       console.error('Error generating path:', error);

@@ -38,7 +38,7 @@ const Dashboard = ({ userId }) => {
 
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
-          <div style={styles.statIcon} style={{backgroundColor: '#dbeafe'}}>
+          <div style={{...styles.statIcon, backgroundColor: '#dbeafe'}}>
             <Target size={24} color="#1e40af" />
           </div>
           <div style={styles.statContent}>
@@ -48,7 +48,7 @@ const Dashboard = ({ userId }) => {
         </div>
 
         <div style={styles.statCard}>
-          <div style={styles.statIcon} style={{backgroundColor: '#dcfce7'}}>
+          <div style={{...styles.statIcon, backgroundColor: '#dcfce7'}}>
             <Trophy size={24} color="#15803d" />
           </div>
           <div style={styles.statContent}>
@@ -58,7 +58,7 @@ const Dashboard = ({ userId }) => {
         </div>
 
         <div style={styles.statCard}>
-          <div style={styles.statIcon} style={{backgroundColor: '#fef3c7'}}>
+          <div style={{...styles.statIcon, backgroundColor: '#fef3c7'}}>
             <TrendingUp size={24} color="#92400e" />
           </div>
           <div style={styles.statContent}>

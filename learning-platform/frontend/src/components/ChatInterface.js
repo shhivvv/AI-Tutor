@@ -41,7 +41,7 @@ const ChatInterface = ({ userId }) => {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -108,7 +108,7 @@ const ChatInterface = ({ userId }) => {
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           placeholder="Ask your question..."
           style={styles.input}
           rows="2"
