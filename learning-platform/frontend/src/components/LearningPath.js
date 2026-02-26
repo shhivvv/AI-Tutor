@@ -15,6 +15,7 @@ const LearningPath = () => {
       return;
     }
 
+    setPath(null); // clear previous result so loading indicator shows
     setLoading(true);
     try {
       const response = await apiService.generateLearningPath(subject, currentLevel, goals);

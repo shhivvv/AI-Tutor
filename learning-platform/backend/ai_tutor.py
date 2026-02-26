@@ -86,6 +86,8 @@ Use the Socratic method to guide learning."""
             (7, 11): "hard"
         }
         
+        # Clamp difficulty to valid range so the map lookup never raises StopIteration
+        difficulty = max(0.0, min(difficulty, 10.9))
         difficulty_level = next(level for (low, high), level in difficulty_map.items() 
                                if low <= difficulty < high)
         

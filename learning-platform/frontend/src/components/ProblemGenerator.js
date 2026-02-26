@@ -44,7 +44,7 @@ const ProblemGenerator = () => {
     try {
       const result = await apiService.assessAnswerDirect(
         1, // user_id
-        topic,
+        problem.topic, // use the topic the problem was generated for, not live input
         problem.question,
         userAnswer,
         problem.solution
@@ -117,7 +117,11 @@ const ProblemGenerator = () => {
           </div>
         </div>
 
-        <button onClick={generateProblem} disabled={loading} style={styles.generateButton}>
+        <button onClick={generateProblem} disabled={loading} style={{
+          ...styles.generateButton,
+          opacity: loading ? 0.6 : 1,
+          cursor: loading ? 'not-allowed' : 'pointer',
+        }}>
           <Sparkles size={20} />
           {loading ? 'Generating...' : 'Generate Problem'}
         </button>

@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -104,8 +105,12 @@ async def health_check():
 async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     new_user = User(username=user.username, email=user.email)
     db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    try:
+        await db.commit()
+        await db.refresh(new_user)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Username or email already exists")
     return {"user_id": new_user.id, "username": new_user.username}
 
 
@@ -127,6 +132,11 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
 
 @app.post("/api/chat")
 async def chat_with_tutor(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+    # Validate user exists
+    user_check = await db.execute(select(User).where(User.id == request.user_id))
+    if not user_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="User not found")
+
     result = await db.execute(
         select(Conversation)
         .where(Conversation.user_id == request.user_id)
@@ -232,6 +242,11 @@ async def submit_answer(request: AnswerSubmitRequest, db: AsyncSession = Depends
 @app.post("/api/problems/assess-direct")
 async def assess_direct(request: DirectAssessRequest, db: AsyncSession = Depends(get_db)):
     """Assess an on-the-fly problem (no saved Problem row) and track progress by topic name."""
+    # Validate user exists
+    user_check = await db.execute(select(User).where(User.id == request.user_id))
+    if not user_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="User not found")
+
     assessment = await asyncio.to_thread(
         ai_tutor.assess_answer,
         question=request.question,
